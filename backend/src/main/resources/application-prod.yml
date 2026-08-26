@@ -1,0 +1,10 @@
+# Production profile: H2 console is a remote-code-execution surface, so it is
+# hard-disabled here. (H2 in-memory is still not a production datastore -- this
+# profile exists to prove the console toggle, per spec.)
+spring:
+  h2:
+    console:
+      enabled: false
+  jpa:
+    properties:
+      hibernate.show_sql: false

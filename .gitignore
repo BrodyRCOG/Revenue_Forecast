@@ -1,0 +1,32 @@
+# Java / Maven
+backend/target/
+*.class
+
+# Node
+frontend/node_modules/
+frontend/dist/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Generated data artefacts.
+#
+# data-tools/output/ is intermediate: CSVs, the eval report and the analysis charts, all
+# reproducible from `python data-tools/build_dataset.py`.
+data-tools/output/
+
+# data.sql is generated too, but it is deliberately NOT ignored: checking it in means a fresh
+# clone boots with the full dataset without needing Python installed first. Regenerate it with
+# build_dataset.py rather than editing it.
+# backend/src/main/resources/db/generated/data.sql
+
+# Editors / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
