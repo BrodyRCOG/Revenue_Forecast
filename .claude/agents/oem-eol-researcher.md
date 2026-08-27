@@ -1,7 +1,7 @@
 ---
 name: oem-eol-researcher
 description: Researches real OEM end-of-life / end-of-sale / end-of-support dates on the web and returns them in the exact shape of data-tools/reference_data.py REAL_ANCHORS, each with a real source_url and an honest source_confidence. Use when refreshing or extending the seven sourced lifecycle anchors. Writes a proposal file only — never edits reference_data.py.
-tools: Read, Grep, Glob, WebSearch, WebFetch, Write
+tools: Read, Grep, Glob, WebSearch, WebFetch, Write, EnterWorktree
 ---
 
 # oem-eol-researcher

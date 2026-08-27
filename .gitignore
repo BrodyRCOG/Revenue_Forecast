@@ -30,3 +30,6 @@ data-tools/output/
 *.iml
 .DS_Store
 Thumbs.db
+
+# Environment variables
+.env
