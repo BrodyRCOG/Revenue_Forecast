@@ -1,5 +1,6 @@
 package com.cognizant.revintel.service;
 
+import com.cognizant.revintel.dto.ManagerOverviewPayload;
 import com.cognizant.revintel.entity.Client;
 import com.cognizant.revintel.entity.Contract;
 import com.cognizant.revintel.entity.Opportunity;
@@ -222,6 +223,50 @@ public class SignalDetectionService {
                     evidence));
         }
         return signals;
+    }
+
+    // -- renewal watch: every contract ending inside the three-month window -----------
+
+    /** Months of forward horizon the Manager Overview renewal watch looks across. */
+    public static final int RENEWAL_WINDOW_MONTHS = 3;
+
+    /**
+     * Contracts whose term ends within {@link #RENEWAL_WINDOW_MONTHS} months of the as-of date, most
+     * imminent first -- the standing renewal rule ("any contract within 3 months of its end date
+     * must be flagged") applied mechanically rather than eyeballed.
+     *
+     * <p>Unlike {@link #contractRenewalSignals()}, this is not filtered by renewal risk or by
+     * whether an expansion play already exists: a business manager wants to see <em>every</em>
+     * contract coming up for renewal, regardless of grade. Pure join logic over the contract and
+     * client repositories, with {@code monthsToRenewal} routed through {@link DeliveryEconomics#rate}
+     * so no non-finite value can reach the JSON boundary.
+     */
+    public List<ManagerOverviewPayload.RenewalRow> renewalWindow() {
+        java.time.LocalDate asOf = asOfProvider.asOf();
+        java.time.LocalDate cutoff = asOf.plusMonths(RENEWAL_WINDOW_MONTHS);
+        Map<String, Client> clientsById = clientsById();
+
+        List<ManagerOverviewPayload.RenewalRow> rows = new ArrayList<>();
+        for (Contract contract : contracts.findEndingBetween(asOf, cutoff)) {
+            Client client = clientsById.get(contract.getClientId());
+            double arr = contract.getArrUsd() == null ? 0.0 : contract.getArrUsd().doubleValue();
+            double monthsToRenewal = asOfProvider.monthsUntil(contract.getEndDate());
+
+            rows.add(new ManagerOverviewPayload.RenewalRow(
+                    contract.getId(),
+                    contract.getClientId(),
+                    client == null ? contract.getClientId() : client.getName(),
+                    client == null ? null : client.getSegment(),
+                    contract.getServiceType(),
+                    DeliveryEconomics.money(arr),
+                    contract.getEndDate().toString(),
+                    DeliveryEconomics.rate(monthsToRenewal),
+                    contract.getRenewalRisk(),
+                    contract.isAutoRenew(),
+                    contract.getNpsScore(),
+                    !contract.getEndDate().isAfter(cutoff)));
+        }
+        return rows;
     }
 
     // -- rule 3: delivery group already over its ceiling ------------------------------

@@ -2,6 +2,16 @@ spring:
   application:
     name: revenue-intelligence-engine
 
+  # Load a local .env (KEY=VALUE) if one exists, so ANTHROPIC_API_KEY set there is picked up without
+  # having to export it into the shell first. Spring does not read .env on its own. Both candidates
+  # are optional: `.env` covers launching from the repo root (or a packaged jar), `../.env` covers
+  # `cd backend && mvn spring-boot:run`, whose working directory is backend/. An OS environment
+  # variable of the same name still wins over either file.
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
+
   # The POC ships a single "data" profile that loads the generated dataset.
   profiles:
     default: data

@@ -126,8 +126,11 @@ that holds it* table for the four documented bugs.
 
 ## Agentic tooling in `.claude/`
 
-Four subagents and two slash commands. None of them writes to application code, tests, or generated
-data; the only write target anywhere in the layer is `.claude/proposals/`.
+Five subagents and three slash commands. Most of them are read-only with respect to application code
+and generated data — `architecture-reviewer`, `pipeline-auditor` and `oem-eol-researcher` write
+nothing outside `.claude/proposals/`, and `data-refresher` only writes what `build_dataset.py` itself
+writes. The one deliberate exception is `data-processing-designer` (see below), which is empowered to
+rewrite the `data-tools/` pipeline.
 
 - `architecture-reviewer` — reviews service-layer diffs against the invariants above
 - `pipeline-auditor` — root-causes eval failures from the real artefact paths
@@ -136,7 +139,13 @@ data; the only write target anywhere in the layer is `.claude/proposals/`.
   its instructions still forbids touching `reference_data.py` or anything under `data-tools/`,
   `backend/`, `frontend/`
 - `data-refresher` — regenerates the dataset without bypassing the eval gate
-- `/run-evals`, `/regenerate-data`
+- `data-processing-designer` — inspects the data, decides how it should be processed for revenue
+  forecasting, and **creates/replaces the Python pipeline under `data-tools/`** (and, only in
+  lockstep with `reference_data.py`'s economics block, `DeliveryEconomics.java`). It authors
+  deterministic Python and lets the eval gate decide correctness — it never computes a value itself.
+  It is the only agent that writes into `data-tools/`; it still never passes `--force`, never
+  hand-edits `data.sql`, and touches nothing else in `backend/` or `frontend/`
+- `/run-evals`, `/regenerate-data`, `/design-data-processing`
 - `.claude/skills/oem-lifecycle-refresh/` — the OEM anchor refresh procedure
 
 `.claude/proposals/` is committed, not ignored — a proposal is a reviewable artefact a human applies

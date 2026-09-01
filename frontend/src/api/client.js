@@ -29,6 +29,7 @@ async function request(path, options = {}) {
 export const api = {
   revenueIntelligence: () => request('/revenue-intelligence'),
   capacityIntelligence: () => request('/capacity-intelligence'),
+  managerOverview: () => request('/manager-overview'),
   dataSources: () => request('/data-sources'),
   evals: () => request('/evals'),
 

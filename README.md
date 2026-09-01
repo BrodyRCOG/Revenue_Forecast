@@ -105,7 +105,7 @@ cd frontend
 node scripts/check-api-contract.mjs http://localhost:5173
 ```
 
-42 assertions over every field path the four pages read — that each exists, is populated, and carries
+46 assertions over every field path the five pages read — that each exists, is populated, and carries
 a real number. Run it against the dev server so the proxy is exercised too.
 
 ### Optional: enable the LLM narration path
@@ -126,13 +126,14 @@ python data-tools/exploratory_analysis/run_all.py
 
 ---
 
-## The four tabs
+## The five tabs
 
 | Tab | What it answers |
 |---|---|
 | **Revenue Intelligence** | Where is the money, and what is not in the CRM yet? KPI tiles, actual-vs-projected trend, forecast breakdown by five dimensions, segment × type heatmap, pipeline coverage, smoothed win rates, and signal cards with "Explain signal". |
 | **Capacity Intelligence** | Can we actually deliver it? Skill demand against sustainable capacity, projected utilisation, and hiring / contractor recommendations. |
 | **Executive Insights** | What if? Three what-if sliders re-running the same forecasting and capacity code, baseline-vs-scenario diffs, a groundedness-checked narrative, and a model-health panel reading `GET /api/evals`. |
+| **Manager Overview** | The quick look. For a business manager who just needs to know what to act on now: which client contracts are ending inside the three-month renewal window, and the highest-value revenue-increase opportunities the engine has surfaced. Reuses figures the other tabs compute; adds no new arithmetic beyond the renewal-window join. |
 | **Data Sources** | What is this built on? Row counts per table, and an honest separation of the seven real lifecycle anchors from the procedural variants derived from them. |
 
 ---
@@ -281,7 +282,7 @@ Three layers, split by language according to where the thing being checked lives
 | Layer | Runs in | Where | Checks |
 |---|---|---|---|
 | **Data** | Python, offline | `data-tools/data_evals.py` | 12 checks: referential integrity, value domains, provenance labelling, `real_anchors_have_source_url`, `capacity_vs_historical_demand_plausibility` |
-| **Pipeline** | Java, JUnit | `backend/src/test/java/.../pipeline/` | 34 checks: aggregation consistency, plausibility, JSON payload safety, what-if propagation, Java↔Python constant parity |
+| **Pipeline** | Java, JUnit | `backend/src/test/java/.../pipeline/` | aggregation consistency, plausibility, JSON payload safety, what-if propagation, Java↔Python constant parity, manager-overview renewal-window consistency |
 | **Narrative** | Java, JUnit | `backend/src/test/java/.../narrative/` | 24 checks: `GroundednessChecker` against adversarial cases, template-fallback behaviour |
 
 `GET /api/evals` returns the combined status, and the Executive Insights model-health panel renders
@@ -322,6 +323,7 @@ the value of a second implementation. Fixed in `ForecastingService.blendedCovera
 | `GET` | `/api/revenue-intelligence` | KPIs, trend, breakdowns, heatmap, coverage, win rates, signals |
 | `POST` | `/api/revenue-intelligence/narrative/signal` | Narration for one signal — body `{"signalId":"..."}`; 404 on an unknown id |
 | `GET` | `/api/capacity-intelligence` | Skill demand, capacity, utilisation projection, hiring recommendations |
+| `GET` | `/api/manager-overview` | Quick-look KPIs, contracts ending within three months, top revenue opportunities |
 | `GET` | `/api/executive/summary` | Executive KPIs, trend, scenario, narrative. Optional `winRateDelta`, `dealSizeDelta`, `targetDelta` |
 | `POST` | `/api/what-if` | Baseline / scenario / delta — body `{"winRateDelta":0.15,...}` |
 | `GET` | `/api/data-sources` | Row counts per table, real lifecycle anchors |
@@ -334,7 +336,7 @@ server-side so narration is always grounded in numbers this backend computed.
 
 ## Frontend notes
 
-Four tabs in `src/pages/`, one API client in `src/api/client.js`. The frontend never talks to the
+Five tabs in `src/pages/`, one API client in `src/api/client.js`. The frontend never talks to the
 database and holds no schema knowledge — it renders whatever the controllers hand it.
 
 - **`null` is never rendered as `0`.** An undefined ratio shows an em dash. Coercing it would turn

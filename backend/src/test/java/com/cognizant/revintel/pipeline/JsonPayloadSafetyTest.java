@@ -44,6 +44,7 @@ class JsonPayloadSafetyTest {
                 "revenue-intelligence", orchestrator.revenueIntelligence(),
                 "capacity-intelligence", orchestrator.capacityIntelligence(),
                 "executive-summary", orchestrator.executiveSummary(),
+                "manager-overview", orchestrator.managerOverview(),
                 "data-sources", orchestrator.dataSources(),
                 "evals", evals.evals());
 

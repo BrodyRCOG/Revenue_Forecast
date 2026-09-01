@@ -1,7 +1,7 @@
 /**
  * Contract check between the pages and the API.
  *
- * Each page reads a specific set of field paths off its payload. This asserts every one of them
+ * Each of the five pages reads a specific set of field paths off its payload. This asserts every one of them
  * exists, is non-empty where the UI needs content, and carries a real number where the UI renders
  * one -- so "the tab renders real numbers from the generated dataset" is verified rather than
  * assumed. Run against the Vite dev server so the proxy is exercised too:
@@ -147,6 +147,22 @@ async function main() {
     Number(scenario.scenario.forecastDemandHours) > Number(scenario.baseline.forecastDemandHours))
   check('interpretation is human readable', typeof scenario.interpretation === 'string'
     && scenario.interpretation.length > 20)
+
+  // --------------------------------------------------------- Manager Overview
+  console.log('\nManager Overview tab')
+  const manager = await get('/manager-overview')
+  check('kpis present with units the formatter knows', nonEmpty(manager.kpis)
+    && manager.kpis.every((k) => ['usd', 'ratio', 'percent', 'count', 'hours'].includes(k.unit)),
+    `${manager.kpis.length} tiles`)
+  check('renewal window rows carry client, ARR, end date and months', Array.isArray(manager.renewalWindow)
+    && manager.renewalWindow.every((r) =>
+      r.clientName && r.endDate && isNumeric(r.arrUsd) && isNumeric(r.monthsToRenewal)),
+    `${manager.renewalWindow.length} contracts`)
+  check('every renewal row is inside the three-month window',
+    manager.renewalWindow.every((r) => Number(r.monthsToRenewal) >= 0 && Number(r.monthsToRenewal) <= 3.05))
+  check('top opportunities carry a real estimated value and a title', Array.isArray(manager.topOpportunities)
+    && manager.topOpportunities.every((s) => s.id && s.title && isNumeric(s.estimatedValueUsd) && Number(s.estimatedValueUsd) > 0),
+    `${manager.topOpportunities.length} opportunities`)
 
   // -------------------------------------------------------------- Model health
   console.log('\nModel health panel')
