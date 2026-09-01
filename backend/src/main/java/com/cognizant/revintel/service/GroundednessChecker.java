@@ -47,9 +47,18 @@ public class GroundednessChecker {
      * it: "$1,234,568." came out as the two tokens "1" and "234", and "$5M." matched nothing at
      * all -- so a hallucinated figure could slip through simply by ending the sentence.
      * {@code (?!\.?\d)} still refuses to stop mid-decimal or mid-thousands-group.
+     *
+     * <p>The thousands-grouped alternative carries an optional {@code (?:\.\d+)?} decimal tail.
+     * Without it, a value written with <em>both</em> separators and cents -- "$1,039,153.85", the
+     * exact figure the deterministic layer computed -- tokenised as the two fragments "1,039" and
+     * "153.85": the first happened to match the thousands rendering, the second matched nothing, and
+     * the whole (correct) narration was discarded as ungrounded. Because {@code money()} emits two
+     * decimals, most refresh and contract figures land in exactly this shape, so the checker was
+     * silently rejecting the model whenever it quoted one back verbatim. Guarded by
+     * {@code GroundednessCheckerTest.acceptsThousandsSeparatorsWithDecimals}.
      */
     private static final Pattern NUMBER = Pattern.compile(
-            "(?<![\\w.])(\\d{1,3}(?:,\\d{3})+|\\d+(?:\\.\\d+)?)\\s*"
+            "(?<![\\w.])(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?)\\s*"
                     + "(%|percent|bn|billion|million|thousand|[kKmMbB])?(?!\\.?\\d)(?![A-Za-z])");
 
     /** Identifiers that look numeric but assert nothing: quarter labels, entity ids, ISO dates. */

@@ -111,6 +111,25 @@ class GroundednessCheckerTest {
         assertThat(checker.check("Estimated value is $1,234,568.", data()).grounded()).isTrue();
     }
 
+    /**
+     * Regression test: a value written with both thousands separators and a decimal tail is one
+     * token, not two. {@code estimatedValueUsd} is {@code 1234567.89}; quoting it back verbatim as
+     * "$1,234,567.89" must be accepted. Before the fix the regex split it into "1,234" and an orphan
+     * "567.89", and the correct narration was discarded -- the reason "Explain signal" appeared to
+     * never produce a model response for refresh and contract figures, which {@code money()} always
+     * renders with two decimals.
+     */
+    @Test
+    void acceptsThousandsSeparatorsWithDecimals() {
+        GroundednessChecker.Result result =
+                checker.check("Estimated value is $1,234,567.89.", data());
+        assertThat(result.grounded()).isTrue();
+        assertThat(result.extracted()).contains("1,234,567.89");
+
+        // Ending the sentence on the figure must not resurrect the fragment-matching bug either.
+        assertThat(checker.check("The refresh is worth $1,234,567.89", data()).grounded()).isTrue();
+    }
+
     @Test
     void doesNotTreatIdentifiersAsClaims() {
         // Quarter labels, entity ids and ISO dates are labels, not assertions about quantity.

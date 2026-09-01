@@ -6,6 +6,7 @@ import com.cognizant.revintel.dto.CapacityIntelligencePayload;
 import com.cognizant.revintel.dto.DataSourcesPayload;
 import com.cognizant.revintel.dto.ExecutiveDto;
 import com.cognizant.revintel.dto.ForecastDto;
+import com.cognizant.revintel.dto.ManagerOverviewPayload;
 import com.cognizant.revintel.dto.NarrativeResponse;
 import com.cognizant.revintel.dto.RevenueIntelligencePayload;
 import com.cognizant.revintel.entity.OemModel;
@@ -274,6 +275,68 @@ public class RevenueIntelligenceOrchestrator {
         data.put("recommendedFteHires", metrics.recommendedFteHires());
         data.put("recommendedContractors", metrics.recommendedContractors());
         return narrative.narrateSummary(data);
+    }
+
+    // ==================================================================================
+    // Manager Overview
+    // ==================================================================================
+
+    /** How many revenue-bearing opportunities the quick-look tab shows, largest value first. */
+    private static final int TOP_OPPORTUNITIES = 6;
+
+    /**
+     * The quick-look tab for a business manager. Assembles only: the renewal watch comes from
+     * {@link SignalDetectionService#renewalWindow()}, the opportunities are the revenue-bearing
+     * signals, and the headline dollars reuse the same forecast totals the Revenue Intelligence tab
+     * shows -- computed once, here.
+     */
+    @Transactional(readOnly = true)
+    public ManagerOverviewPayload managerOverview() {
+        List<ForecastRow> rows = forecasting.forecastRows(Assumptions.baseline());
+        ForecastDto.ForecastTotals totals = forecasting.totals(rows);
+
+        List<ManagerOverviewPayload.RenewalRow> renewalWindow = signalDetection.renewalWindow();
+        List<Signal> signals = signalDetection.allSignals();
+        List<Signal> topOpportunities = signals.stream()
+                .filter(Signal::carriesRevenue)
+                .sorted(Comparator.comparing(Signal::estimatedValueUsd, Comparator.reverseOrder()))
+                .limit(TOP_OPPORTUNITIES)
+                .toList();
+
+        return new ManagerOverviewPayload(
+                asOfProvider.asOf().toString(),
+                asOfProvider.currentQuarter(),
+                datasetSource(),
+                managerKpis(renewalWindow, totals, signals),
+                renewalWindow,
+                topOpportunities);
+    }
+
+    private List<ExecutiveDto.Kpi> managerKpis(List<ManagerOverviewPayload.RenewalRow> renewalWindow,
+                                               ForecastDto.ForecastTotals totals,
+                                               List<Signal> signals) {
+        BigDecimal arrUpForRenewal = renewalWindow.stream()
+                .map(ManagerOverviewPayload.RenewalRow::arrUsd)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long criticalSignals = signals.stream().filter(s -> "Critical".equals(s.severity())).count();
+
+        return List.of(
+                new ExecutiveDto.Kpi("renewalsDueSoon", "Contracts ending ≤ 3 mo",
+                        BigDecimal.valueOf(renewalWindow.size()), "count",
+                        "Term ends within the three-month renewal window"),
+                new ExecutiveDto.Kpi("arrUpForRenewal", "ARR up for renewal",
+                        arrUpForRenewal, "usd",
+                        "Recurring revenue across those contracts"),
+                new ExecutiveDto.Kpi("weightedPipeline", "Weighted pipeline",
+                        totals.weightedPipelineUsd(), "usd",
+                        "Open pipeline plus whitespace, weighted by historical win rates"),
+                new ExecutiveDto.Kpi("whitespace", "Whitespace revenue",
+                        totals.whitespaceWeightedUsd(), "usd",
+                        "Opportunity not yet in the sales cycle"),
+                new ExecutiveDto.Kpi("criticalSignals", "Critical signals",
+                        BigDecimal.valueOf(criticalSignals), "count",
+                        signals.size() + " signals detected in total"));
     }
 
     // ==================================================================================

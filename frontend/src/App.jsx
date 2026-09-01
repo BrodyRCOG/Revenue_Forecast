@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import RevenueIntelligencePage from './pages/RevenueIntelligencePage.jsx'
 import CapacityIntelligencePage from './pages/CapacityIntelligencePage.jsx'
 import ExecutiveInsightsPage from './pages/ExecutiveInsightsPage.jsx'
+import ManagerOverviewPage from './pages/ManagerOverviewPage.jsx'
 import DataSourcesPage from './pages/DataSourcesPage.jsx'
 import { Badge } from './components/primitives.jsx'
 
@@ -9,6 +10,7 @@ const TABS = [
   { id: 'revenue', label: 'Revenue Intelligence', Page: RevenueIntelligencePage },
   { id: 'capacity', label: 'Capacity Intelligence', Page: CapacityIntelligencePage },
   { id: 'executive', label: 'Executive Insights', Page: ExecutiveInsightsPage },
+  { id: 'manager', label: 'Manager Overview', Page: ManagerOverviewPage },
   { id: 'data', label: 'Data Sources', Page: DataSourcesPage },
 ]
 

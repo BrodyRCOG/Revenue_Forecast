@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -45,23 +45,37 @@ const SIGNAL_FILTERS = [
   { value: 'contract_renewal_risk', label: 'Renewal' },
 ]
 
-const SIGNALS_SHOWN = 9
+const SIGNALS_PER_PAGE = 9
 
 export default function RevenueIntelligencePage() {
   const { data, error, loading, reload } = useApiData(api.revenueIntelligence, [])
   const palette = usePalette()
   const [breakdown, setBreakdown] = useState('byQuarter')
   const [signalFilter, setSignalFilter] = useState('Critical')
+  const [signalSearch, setSignalSearch] = useState('')
+  const [signalPage, setSignalPage] = useState(1)
 
   const chrome = chartChrome(palette)
 
   const filteredSignals = useMemo(() => {
     if (!data) return []
-    if (signalFilter === 'all') return data.signals
-    return data.signals.filter(
-      (signal) => signal.severity === signalFilter || signal.type === signalFilter,
-    )
-  }, [data, signalFilter])
+    const query = signalSearch.trim().toLowerCase()
+    return data.signals.filter((signal) => {
+      const matchesFilter =
+        signalFilter === 'all' || signal.severity === signalFilter || signal.type === signalFilter
+      if (!matchesFilter) return false
+      if (!query) return true
+      // Free-text search across the fields a reader would scan: client, headline and detail.
+      return [signal.title, signal.detail, signal.clientName, signal.segment].some((field) =>
+        (field ?? '').toLowerCase().includes(query),
+      )
+    })
+  }, [data, signalFilter, signalSearch])
+
+  // A changed filter or search almost always changes which page makes sense, so start over at 1.
+  useEffect(() => {
+    setSignalPage(1)
+  }, [signalFilter, signalSearch])
 
   if (loading) return <Loading what="revenue intelligence" />
   if (error) return <ErrorNotice error={error} onRetry={reload} />
@@ -70,6 +84,18 @@ export default function RevenueIntelligencePage() {
   // Forward-looking quarters only: a closed quarter has no pipeline left to cover it, so its
   // coverage ratio is a true but useless zero.
   const forwardCoverage = data.coverage.filter((row) => row.phase !== 'actual')
+
+  // Signal pagination. `signalPage` is clamped here rather than in state so an over-large page
+  // (e.g. after the filter shrinks the set) simply snaps to the last real page on render.
+  const pageCount = Math.max(1, Math.ceil(filteredSignals.length / SIGNALS_PER_PAGE))
+  const page = Math.min(Math.max(1, signalPage), pageCount)
+  const pageStart = (page - 1) * SIGNALS_PER_PAGE
+  const pageSignals = filteredSignals.slice(pageStart, pageStart + SIGNALS_PER_PAGE)
+  const goToPage = (raw) => {
+    const requested = Number(raw)
+    if (!Number.isFinite(requested)) return
+    setSignalPage(Math.min(pageCount, Math.max(1, Math.trunc(requested))))
+  }
 
   return (
     <div className="stack">
@@ -280,7 +306,7 @@ export default function RevenueIntelligencePage() {
         note="Detected by rule and join logic over the asset, contract and workforce data — not by a model. These are opportunities and risks that are not in the CRM pipeline yet. Press “Explain signal” for a narrative; the badge tells you whether it was model-generated and groundedness-checked, or rendered from a template."
         actions={
           <Badge tone="neutral">
-            {count(data.signals.length)} detected · {count(filteredSignals.length)} shown
+            {count(data.signals.length)} detected · {count(filteredSignals.length)} match
           </Badge>
         }
       >
@@ -290,21 +316,68 @@ export default function RevenueIntelligencePage() {
           value={signalFilter}
           onChange={setSignalFilter}
         />
+        <div className="control-row">
+          <span className="control-label">Search</span>
+          <input
+            type="search"
+            className="text-input"
+            placeholder="Filter by client, headline or detail…"
+            value={signalSearch}
+            onChange={(event) => setSignalSearch(event.target.value)}
+            aria-label="Search signals"
+          />
+          {signalSearch && (
+            <button type="button" className="button" onClick={() => setSignalSearch('')}>
+              Clear
+            </button>
+          )}
+        </div>
         {filteredSignals.length === 0 ? (
-          <p className="empty">No signals match this filter.</p>
+          <p className="empty">
+            No signals match this filter{signalSearch ? ' and search' : ''}.
+          </p>
         ) : (
           <>
             <div className="signal-list">
-              {filteredSignals.slice(0, SIGNALS_SHOWN).map((signal) => (
+              {pageSignals.map((signal) => (
                 <SignalCard key={signal.id} signal={signal} />
               ))}
             </div>
-            {filteredSignals.length > SIGNALS_SHOWN && (
-              <p className="footnote">
-                Showing the {SIGNALS_SHOWN} highest-value of {filteredSignals.length} matching
-                signals. Signals are ranked by severity, then by estimated value.
-              </p>
-            )}
+            <div className="pagination">
+              <button
+                type="button"
+                className="button"
+                onClick={() => setSignalPage(page - 1)}
+                disabled={page <= 1}
+              >
+                Previous
+              </button>
+              <span className="pagination-status">
+                Page
+                <input
+                  type="number"
+                  className="pagination-input"
+                  min={1}
+                  max={pageCount}
+                  value={page}
+                  onChange={(event) => goToPage(event.target.value)}
+                  aria-label={`Page number, 1 to ${pageCount}`}
+                />
+                of {pageCount}
+              </span>
+              <button
+                type="button"
+                className="button"
+                onClick={() => setSignalPage(page + 1)}
+                disabled={page >= pageCount}
+              >
+                Next
+              </button>
+              <span className="footnote pagination-summary">
+                Showing {pageStart + 1}–{pageStart + pageSignals.length} of {filteredSignals.length}.
+                Ranked by severity, then estimated value.
+              </span>
+            </div>
           </>
         )}
       </Panel>
